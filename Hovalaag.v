@@ -55,7 +55,7 @@ module Hovalaag(
 	assign F_op = instr[18:17];
 	assign PC_op = instr[16:15];
 	assign IO_select = instr[13];
-	assign K = (instr[12]) ? instr[11:0] : {6'b000000,instr[11:6]};
+	assign K = (instr[12]) ? instr[11:0] : { {6{instr[11]}}, instr[11:6] };
 	assign L = (instr[12]) ? instr[7:0] : {2'b00,instr[5:0]};
 	always @(posedge clk) begin
 		OUT_valid <= instr[14];
