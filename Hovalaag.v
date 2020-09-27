@@ -86,7 +86,7 @@ module Hovalaag(
 	
 	// ALU
 `include "HovalaagALU.v"
-	assign {newF,M} = HovalaagALU(alu_op, A, B, C, F);
+	assign {newF,M} = HovalaagALU(alu_op, {A[11],A}, {B[11],B}, {C[11],C}, F);
 	
 	always @(posedge clk) begin
 		if (rst == 1'b1) begin
@@ -94,7 +94,7 @@ module Hovalaag(
 			B <= 12'h000;
 			D <= 12'h000;
 			W <= 12'h000;
-			F = 1'b0;
+			F <= 1'b0;
 			C = 12'h000;
 			PC = 8'h00;
 		end
@@ -131,10 +131,10 @@ module Hovalaag(
 			
 			// F unit
 			case (F_op)
-			2'b00: F = F;
-			2'b01: F = ({newF,M} == 13'b0000000000000) ? 1'b1 : 1'b0;
-			2'b10: F = newF;
-			2'b11: F = !newF;
+			2'b00: F <= F;
+			2'b01: F <= ({newF,M} == 13'b0000000000000) ? 1'b1 : 1'b0;
+			2'b10: F <= newF;
+			2'b11: F <= !newF;
 			endcase			
 			
 			// C unit

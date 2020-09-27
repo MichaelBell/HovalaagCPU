@@ -5,6 +5,7 @@
 module SevenSeg(
     input clk,
     input [11:0] data,
+	 input new_data,
 	 output [7:0] seg,
 	 output [3:0] an
     );
@@ -56,7 +57,7 @@ module SevenSeg(
 			end
 			2'b11: begin
 				anReg <= 4'b1110;
-				segReg <= lookupResult;
+				segReg <= {!new_data, lookupResult[6:0]};
 			end
 			endcase
 		end

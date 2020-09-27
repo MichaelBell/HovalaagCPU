@@ -35,28 +35,38 @@ module hovalaag_top(
 	
 	// Clock control
 	reg [23:0] counter = 24'b000000000000000000000000;
-	reg slowclk = 1'b0;
+	reg slow_clk = 1'b0;
 	reg step_btn = 1'b0;
 	
+	// Input advance control (only advance once)
+	reg prev_slow_clk;
+	reg do_input_adv = 1'b0;
+	
 	always @(posedge clk) begin
+		prev_slow_clk = slow_clk;
+		
 		if (sw[1]) begin
 			counter = counter + 1'b1;
 			if (counter == 24'b000000000000000000000000) begin
-				slowclk = !slowclk;
+				slow_clk = !slow_clk;
 				if (sw[2]) counter = 24'b111000000000000000000000;
 			end
 		end
 		else begin
 			if (!step_btn && btn[3])
-				slowclk = !slowclk;
-			if (slowclk || !btn[3])
+				slow_clk = !slow_clk;
+			if (slow_clk || !btn[3])
 				step_btn = btn[3];
 		end
+		
+		if (slow_clk && !prev_slow_clk) do_input_adv = 1'b1;
+		else do_input_adv = 1'b0;
 	end
 	
 	// Instantiate CPU and program block ROM
-	Hovalaag cpu(slowclk, IN1, IN1_adv, IN2, IN2_adv, OUT, OUT_valid, OUT_select, instr, addr, reset);
+	Hovalaag cpu(slow_clk, IN1, IN1_adv, IN2, IN2_adv, OUT, OUT_valid, OUT_select, instr, addr, reset);
 	Program prog(clk, addr, instr);
+	Input inp(clk, reset, IN1_adv & do_input_adv, IN2_adv & do_input_adv, IN1, IN2);
 
 	// Handle output, currently just saved in a register.
 	reg [11:0] OUT1 = 12'h000;
@@ -76,9 +86,9 @@ module hovalaag_top(
 	
 	// Display selected output register
 	assign displayOUT = sw[0] ? OUT2 : OUT1;
-	SevenSeg display(clk, displayOUT, seg, an);
+	SevenSeg display(clk, displayOUT, OUT_valid & (OUT_select == sw[0]), seg, an);
 
 	// Display next PC
-	assign Led = addr[7:0];
+	assign Led = addr;
 
 endmodule
