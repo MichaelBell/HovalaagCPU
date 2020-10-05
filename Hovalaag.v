@@ -134,8 +134,8 @@ module Hovalaag(
 			2'b00: F <= F;
 			2'b01: F <= ({newF,M} == 13'b0000000000000) ? 1'b1 : 1'b0;
 			2'b10: F <= newF;
-			2'b11: F <= !newF;
-			endcase			
+			2'b11: F <= (!newF && M != 12'h000);
+			endcase
 			
 			// C unit
 			case (C_op)
