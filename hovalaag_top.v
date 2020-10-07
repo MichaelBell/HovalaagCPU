@@ -17,7 +17,13 @@ module hovalaag_top(
 	 output [7:0] seg,
 	 output [3:0] an,
 	 input [7:0] sw,
-	 input [3:0] btn
+	 input [3:0] btn,
+	 
+	 input EppAstb,
+    input EppDstb,
+    input EppWR,
+    output EppWait,
+    inout [7:0] EppDB
     );
 
 	// Connections to Hovalaag CPU
@@ -32,6 +38,15 @@ module hovalaag_top(
 	wire [31:0] instr;
 	wire [7:0] addr;
 	wire reset = btn[0];
+	
+	// Programming
+	wire program_write;
+	wire [7:0] program_addr;
+	wire [31:0] program_data;
+	wire in1_set;
+	wire in2_set;
+	wire [7:0] input_addr;
+	wire [11:0] input_data;
 	
 	// Clock control
 	reg [23:0] counter = 24'b000000000000000000000000;
@@ -63,10 +78,11 @@ module hovalaag_top(
 		else do_input_adv = 1'b0;
 	end
 	
-	// Instantiate CPU and program block ROM
+	// Instantiate CPU and program block RAM
 	Hovalaag cpu(slow_clk, IN1, IN1_adv, IN2, IN2_adv, OUT, OUT_valid, OUT_select, instr, addr, reset);
-	Program prog(clk, addr, instr);
-	Input inp(clk, reset, IN1_adv & do_input_adv, IN2_adv & do_input_adv, IN1, IN2);
+	DpimIf dpim(clk, EppAstb, EppDstb, EppWR, EppWait, EppDB, program_write, program_addr, program_data, in1_set, in2_set, input_addr, input_data);
+	Program prog(clk, addr, instr, program_write, program_addr, program_data);
+	Input inp(clk, reset, IN1_adv & do_input_adv, IN2_adv & do_input_adv, IN1, IN2, in1_set, in2_set, input_addr, input_data);
 
 	// Handle output, currently just saved in a register.
 	reg [11:0] OUT1 = 12'h000;
@@ -85,10 +101,10 @@ module hovalaag_top(
 	end
 	
 	// Display selected output register
-	assign displayOUT = sw[0] ? OUT2 : OUT1;
+	assign displayOUT = program_write ? program_data[11:0] : (sw[0] ? OUT2 : OUT1);
 	SevenSeg display(clk, displayOUT, OUT_valid & (OUT_select == sw[0]), seg, an);
 
 	// Display next PC
-	assign Led = addr;
+	assign Led = program_write ? program_addr : addr;
 
 endmodule

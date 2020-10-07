@@ -42,3 +42,20 @@ NET "btn<3>" LOC = "A7";  # Bank = 1, Signal name = BTN3
 NET "btn<2>" LOC = "M4";  # Bank = 0, Signal name = BTN2
 NET "btn<1>" LOC = "C11"; # Bank = 2, Signal name = BTN1
 NET "btn<0>" LOC = "G12"; # Bank = 0, Signal name = BTN0
+
+# Pin assignment for EppCtl
+# Connected to Basys2 onBoard USB controller
+NET "EppAstb" LOC = "F2"; # Bank = 3
+NET "EppDstb" LOC = "F1"; # Bank = 3
+NET "EppWR"       LOC = "C2"; # Bank = 3
+
+NET "EppWait" LOC = "D2"; # Bank = 3
+
+NET "EppDB<0>" LOC = "N2"; # Bank = 2
+NET "EppDB<1>" LOC = "M2"; # Bank = 2
+NET "EppDB<2>" LOC = "M1"; # Bank = 3
+NET "EppDB<3>" LOC = "L1"; # Bank = 3
+NET "EppDB<4>" LOC = "L2"; # Bank = 3
+NET "EppDB<5>" LOC = "H2"; # Bank = 3
+NET "EppDB<6>" LOC = "H1"; # Bank = 3
+NET "EppDB<7>" LOC = "H3"; # Bank = 3

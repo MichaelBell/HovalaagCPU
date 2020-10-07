@@ -29,6 +29,7 @@ _xmsgs/
 *.twx
 *.unroutes
 *.ut
+*.wcfg
 *.xpi
 *.xwbt
 *_envsettings.html
