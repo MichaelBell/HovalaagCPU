@@ -9,7 +9,9 @@ There is a very simple test harness in Hovalaag_test.v
 
 hovalaag_top.v is the top level module for a harness for the CPU on the Digilent BASYS 2 FPGA dev board.  This links the CPU to a program contained in Program.v, and displays the outputs on the development board's seven segment display.
 
-The assembler for hovalaag can be downloaded from http://silverspaceship.com/hovalaag/assembler.zip
-The assembler produces a binary output file a.out.  This can be converted to a format that can be pasted into the case statement in Program.v by bin2verilog.py.
+There are two possible ways to use the Hovalaag data inputs in hovalaag_top.v, either two separate input banks, or OUT2 looped back to IN2 via a FIFO as in the later Hovalaag puzzles.
 
-Note that this implementation is in early stages - it has had very little testing!
+The assembler for hovalaag can be downloaded from http://silverspaceship.com/hovalaag/assembler.zip
+The assembler produces a binary output file a.out.  
+
+In the Inject directory there's a program that will inject a.out and the contents of input.txt to the Hovalaag using the Digilent DEPP interface over USB.
