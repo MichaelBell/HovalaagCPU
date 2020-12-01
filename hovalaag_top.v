@@ -9,7 +9,8 @@
 // The LEDs indicate address of next instruction to be executed
 //
 // If SW1 is down pressing BTN3 clocks the CPU once
-// If SW1 is up, the CPU clocks at about 1.5Hz (SW2 down) or 12Hz (SW2 up)
+// If SW1 is up, the CPU clocks at about 12.5MHz (if SW3 up), or 1.5Hz (SW2 down) or 12Hz (SW2 up)
+// If SW4 is up, the CPU pauses on each write to OUT1, pressing BTN2 continues.
 // Pressing BTN0 resets the CPU.
 module hovalaag_top(
     input clk,
@@ -52,37 +53,48 @@ module hovalaag_top(
 	reg [23:0] counter = 24'b000000000000000000000000;
 	reg slow_clk = 1'b0;
 	reg step_btn = 1'b0;
+	reg pause = 1'b0;
 	
 	// Input advance control (only advance once)
-	reg prev_slow_clk;
-	reg do_input_adv = 1'b0;
+	reg prev_slow_clk = 1'b0;
+	wire do_hoval_IO;
 	
 	always @(posedge clk) begin
-		prev_slow_clk = slow_clk;
+		prev_slow_clk <= slow_clk;
 		
-		if (sw[1]) begin
+		if (pause) begin
+			// Do nothing while paused
+		end 
+		else if (sw[1]) begin
 			counter = counter + 1'b1;
 			if (counter == 24'b000000000000000000000000) begin
-				slow_clk = !slow_clk;
-				if (sw[2]) counter = 24'b111000000000000000000000;
+				slow_clk <= !slow_clk;
+				if (sw[3]) counter = 24'b111111111111111111111100;
+				else if (sw[2]) counter = 24'b111000000000000000000000;
 			end
 		end
 		else begin
 			if (!step_btn && btn[3])
-				slow_clk = !slow_clk;
+				slow_clk <= !slow_clk;
 			if (slow_clk || !btn[3])
 				step_btn = btn[3];
 		end
-		
-		if (slow_clk && !prev_slow_clk) do_input_adv = 1'b1;
-		else do_input_adv = 1'b0;
 	end
+	
+	assign do_hoval_IO = prev_slow_clk & !slow_clk;
 	
 	// Instantiate CPU and program block RAM
 	Hovalaag cpu(slow_clk, IN1, IN1_adv, IN2, IN2_adv, OUT, OUT_valid, OUT_select, instr, addr, reset);
 	DpimIf dpim(clk, EppAstb, EppDstb, EppWR, EppWait, EppDB, program_write, program_addr, program_data, in1_set, in2_set, input_addr, input_data);
 	Program prog(clk, addr, instr, program_write, program_addr, program_data);
-	Input inp(clk, reset, IN1_adv & do_input_adv, IN2_adv & do_input_adv, IN1, IN2, in1_set, in2_set, input_addr, input_data);
+	
+	// Two input data banks version
+	//Input inp(clk, reset, IN1_adv & do_hoval_IO, IN2_adv & do_hoval_IO, IN1, IN2, in1_set, in2_set, input_addr, input_data);
+	
+	// Loopback OUT2 to IN2 version
+	wire [11:0] unused_input;
+	Input inp(clk, reset, IN1_adv & do_hoval_IO, 1'b0, IN1, unused_input, in1_set, 1'b0, input_addr, input_data);
+	Fifo fifo(clk, reset, OUT_select & OUT_valid & do_hoval_IO, OUT, IN2, IN2_adv & do_hoval_IO);
 
 	// Handle output, currently just saved in a register.
 	reg [11:0] OUT1 = 12'h000;
@@ -95,9 +107,13 @@ module hovalaag_top(
 			OUT2 <= 12'h000;
 		end
 		else if (OUT_valid) begin
-			if (OUT_select == 1'b0) OUT1 <= OUT;
+			if (OUT_select == 1'b0) begin
+			   OUT1 <= OUT;
+				if (sw[4]) pause <= 1'b1;
+			end
 			else OUT2 <= OUT;
 		end
+		if (btn[2]) pause <= 1'b0;
 	end
 	
 	// Display selected output register
