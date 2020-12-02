@@ -142,12 +142,12 @@ uint8_t* BuildInputRegSet(size_t* regSetLen)
     return NULL;
   }
 
-  short int in1[257];
-  short int in2[257];
+  short int in1[8192];
+  short int in2[8192];
   int in1Len = 0;
   int in2Len = 0;
 
-  for (int i = 0; i < 256 && !feof(inFile); ++i)
+  for (int i = 0; i < 8192 && !feof(inFile); ++i)
   {
     char buf[256];
     if (!fgets(buf, sizeof(buf), inFile)) break;
@@ -162,37 +162,41 @@ uint8_t* BuildInputRegSet(size_t* regSetLen)
   in2[in2Len] = 0;
 
   // Produce address/data pairs for programming
-  uint8_t* regSetPairs = (uint8_t*)malloc((in1Len + in2Len + 2) * 5 * 2 + 2);
+  uint8_t* regSetPairs = (uint8_t*)malloc((in1Len + in2Len + 2) * 6 * 2 + 2);
   for (size_t i = 0; i <= in1Len; ++i)
   {
-    uint8_t* instr = &regSetPairs[i * 5 * 2];
+    uint8_t* instr = &regSetPairs[i * 6 * 2];
     for (int j = 0; j < 4; ++j)
       instr[j*2] = j;
     instr[1] = 2;
-    instr[3] = i;
+    instr[3] = i & 0xff;
     instr[5] = in1[i] >> 8;
     instr[7] = in1[i] & 0xff;
-    instr[8] = 0;
-    instr[9] = (i == in1Len) ? 0xc2 : 0x82;
+    instr[8] = 6;
+    instr[9] = i >> 8;
+    instr[10] = 0;
+    instr[11] = (i == in1Len) ? 0xc2 : 0x82;
   }
   for (size_t i = 0; i <= in2Len; ++i)
   {
-    uint8_t* instr = &regSetPairs[(i + in1Len + 1) * 5 * 2];
+    uint8_t* instr = &regSetPairs[(i + in1Len + 1) * 6 * 2];
     for (int j = 0; j < 4; ++j)
       instr[j*2] = j;
     instr[1] = 3;
-    instr[3] = i;
+    instr[3] = i & 0xff;
     instr[5] = in2[i] >> 8;
     instr[7] = in2[i] & 0xff;
-    instr[8] = 0;
-    instr[9] = (i == in1Len) ? 0xc3 : 0x83;
+    instr[8] = 6;
+    instr[9] = i >> 8;
+    instr[10] = 0;
+    instr[11] = (i == in1Len) ? 0xc3 : 0x83;
   }
 
-  regSetPairs[(in1Len + in2Len + 2) * 5 * 2] = 0;
-  regSetPairs[(in1Len + in2Len + 2) * 5 * 2 + 1] = 0;
+  regSetPairs[(in1Len + in2Len + 2) * 6 * 2] = 0;
+  regSetPairs[(in1Len + in2Len + 2) * 6 * 2 + 1] = 0;
 
   fclose(inFile);
 
-  *regSetLen = (in1Len + in2Len + 2) * 5 * 2 + 2;
+  *regSetLen = (in1Len + in2Len + 2) * 6 * 2 + 2;
   return regSetPairs;
 }

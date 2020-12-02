@@ -28,6 +28,12 @@ module Hovalaag(
 	 
 	 input [31:0] instr,
 	 output [7:0] PC_out,
+
+// Debug	 
+	 output [11:0] A_dbg,
+	 output [11:0] B_dbg,
+	 output [11:0] C_dbg,
+	 output [11:0] D_dbg,
 	 
 	 input rst
     );
@@ -83,6 +89,11 @@ module Hovalaag(
 	
 	// Outputs
 	assign PC_out = PC;
+	
+	assign A_dbg = A;
+	assign B_dbg = B;
+	assign C_dbg = C;
+	assign D_dbg = D;
 	
 	// ALU
 `include "HovalaagALU.v"

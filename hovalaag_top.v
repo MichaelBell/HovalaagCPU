@@ -39,6 +39,11 @@ module hovalaag_top(
 	wire [31:0] instr;
 	wire [7:0] addr;
 	wire reset = btn[0];
+
+	wire [11:0] A;
+	wire [11:0] B;
+	wire [11:0] C;
+	wire [11:0] D;
 	
 	// Programming
 	wire program_write;
@@ -46,7 +51,7 @@ module hovalaag_top(
 	wire [31:0] program_data;
 	wire in1_set;
 	wire in2_set;
-	wire [7:0] input_addr;
+	wire [12:0] input_addr;
 	wire [11:0] input_data;
 	
 	// Clock control
@@ -57,44 +62,52 @@ module hovalaag_top(
 	
 	// Input advance control (only advance once)
 	reg prev_slow_clk = 1'b0;
-	wire do_hoval_IO;
+	reg do_hoval_IN;
+	reg do_hoval_OUT;
 	
 	always @(posedge clk) begin
 		prev_slow_clk <= slow_clk;
+		do_hoval_OUT <= do_hoval_IN;
 		
 		if (pause) begin
 			// Do nothing while paused
+			do_hoval_IN <= 1'b0;
 		end 
 		else if (sw[1]) begin
 			counter = counter + 1'b1;
 			if (counter == 24'b000000000000000000000000) begin
 				slow_clk <= !slow_clk;
+				do_hoval_IN <= !slow_clk;
 				if (sw[3]) counter = 24'b111111111111111111111100;
 				else if (sw[2]) counter = 24'b111000000000000000000000;
 			end
+			else
+			  do_hoval_IN <= 1'b0;
 		end
 		else begin
-			if (!step_btn && btn[3])
-				slow_clk <= !slow_clk;
-			if (slow_clk || !btn[3])
-				step_btn = btn[3];
+			if (!step_btn && btn[3]) begin
+				slow_clk <= 1'b1;
+				do_hoval_IN <= 1'b1;
+			end
+			else begin
+			   slow_clk <= 1'b0;
+				do_hoval_IN <= 1'b0;
+			end
+			step_btn <= btn[3];
 		end
 	end
 	
-	assign do_hoval_IO = prev_slow_clk & !slow_clk;
-	
 	// Instantiate CPU and program block RAM
-	Hovalaag cpu(slow_clk, IN1, IN1_adv, IN2, IN2_adv, OUT, OUT_valid, OUT_select, instr, addr, reset);
+	Hovalaag cpu(slow_clk, IN1, IN1_adv, IN2, IN2_adv, OUT, OUT_valid, OUT_select, instr, addr, A, B, C, D, reset);
 	DpimIf dpim(clk, EppAstb, EppDstb, EppWR, EppWait, EppDB, program_write, program_addr, program_data, in1_set, in2_set, input_addr, input_data);
 	Program prog(clk, addr, instr, program_write, program_addr, program_data);
 	
 	// Two input data banks version
-	//Input inp(clk, reset, IN1_adv & do_hoval_IO, IN2_adv & do_hoval_IO, IN1, IN2, in1_set, in2_set, input_addr, input_data);
+	//Input inp(clk, reset, IN1_adv & do_hoval_IN, IN2_adv & do_hoval_IN, IN1, IN2, in1_set, in2_set, input_addr[7:0], input_data);
 	
 	// Loopback OUT2 to IN2 version
-	wire [11:0] unused_input;
-	Input inp(clk, reset, IN1_adv & do_hoval_IO, 1'b0, IN1, unused_input, in1_set, 1'b0, input_addr, input_data);
-	Fifo fifo(clk, reset, OUT_select & OUT_valid & do_hoval_IO, OUT, IN2, IN2_adv & do_hoval_IO);
+	Input1 inp(clk, reset, IN1_adv & do_hoval_IN, IN1, in1_set, input_addr, input_data);
+	Fifo fifo(clk, reset, OUT_select & OUT_valid & do_hoval_OUT, OUT, IN2, IN2_adv & do_hoval_IN);
 
 	// Handle output, currently just saved in a register.
 	reg [11:0] OUT1 = 12'h000;
@@ -117,7 +130,10 @@ module hovalaag_top(
 	end
 	
 	// Display selected output register
-	assign displayOUT = program_write ? program_data[11:0] : (sw[0] ? OUT2 : OUT1);
+	assign displayOUT = sw[5] ? ((!sw[7] && !sw[6]) ? A : 
+	                             (!sw[7] && sw[6]) ? B : 
+										  (sw[7] && !sw[6]) ? C : D) : 
+	                     program_write ? program_data[11:0] : (sw[0] ? OUT2 : OUT1);
 	SevenSeg display(clk, displayOUT, OUT_valid & (OUT_select == sw[0]), seg, an);
 
 	// Display next PC

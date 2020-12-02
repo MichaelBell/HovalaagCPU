@@ -18,7 +18,7 @@ module DpimIf(
 	 output [31:0] program_data,
 	 output input1_set,
 	 output input2_set,
-	 output [7:0] input_addr,
+	 output [12:0] input_addr,
 	 output [11:0] input_data
     );
 
@@ -72,6 +72,7 @@ module DpimIf(
 	//     0xc1-c3: Set remaining addresses to current contents of data registers.
 	// 1: Address register
 	// 2-3/2-5: Input / program data bytes (little endian, so reg 2 contains bit 31-24, etc)
+	// 6: High address register
 	//
 	// Examples:
 	// To write one 32-bit word of program:
@@ -84,21 +85,22 @@ module DpimIf(
 	// Set address and data registers to 0
 	// Set register 0 to 0xc2
 	reg [7:0] ctrlReg = 8'h00;
-	reg [7:0] programAddr = 8'h00;
+	reg [12:0] programAddr = 13'h0000;
 	reg [31:0] programData = 8'h00;
 	
 	assign busEppOut = (EppAstb == 1'b0) ? regAddr : dataOut;
 	assign dataOut = (regAddr == 8'h00) ? ctrlReg :
-	                 (regAddr == 8'h01) ? programAddr :
+	                 (regAddr == 8'h01) ? programAddr[7:0] :
 	                 (regAddr == 8'h02) ? programData[31:24] :
 	                 (regAddr == 8'h03) ? programData[23:16] :
 	                 (regAddr == 8'h04) ? programData[15:8] :
-	                 (regAddr == 8'h05) ? programData[7:0] : 8'h00;
+	                 (regAddr == 8'h05) ? programData[7:0] :
+	                 (regAddr == 8'h06) ? {3'b000,programAddr[12:8]} : 8'h00;
 
 	assign program_set = ((ctrlReg & 8'h8F) == 8'h81);
 	assign input1_set = ((ctrlReg & 8'h8F) == 8'h82);
 	assign input2_set = ((ctrlReg & 8'h8F) == 8'h83);
-	assign program_addr = programAddr;
+	assign program_addr = programAddr[7:0];
 	assign program_data = programData;
 	assign input_addr = programAddr;
 	assign input_data = programData[27:16];
@@ -162,14 +164,15 @@ module DpimIf(
 		else if (EppDataWr)
 			case (regAddr)
 			8'h00: ctrlReg <= busEppIn;
-			8'h01: programAddr <= busEppIn;
+			8'h01: programAddr[7:0] <= busEppIn;
 			8'h02: programData[31:24] <= busEppIn;
 			8'h03: programData[23:16] <= busEppIn;
 			8'h04: programData[15:8] <= busEppIn;
 			8'h05: programData[7:0] <= busEppIn;
+			8'h06: programAddr[12:8] <= busEppIn[4:0];
 			endcase
 		else if (ctrlReg[6]) begin
-			if (programAddr == 8'hFF)
+			if (programAddr == 13'h1FFF)
 				ctrlReg[6] <= 1'b0;
 			else
 				programAddr <= programAddr + 1'b1;
