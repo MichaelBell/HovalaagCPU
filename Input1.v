@@ -15,7 +15,7 @@ module Input1(
 
 	reg [12:0] addr1 = 13'h0000;
 	
-	reg [11:0] input1_array [8192:0];
+	reg [11:0] input1_array [0:8191];
 	
 	always @(posedge clk) begin
 		if (rst) begin

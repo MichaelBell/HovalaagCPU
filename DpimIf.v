@@ -72,7 +72,7 @@ module DpimIf(
 	//     0xc1-c3: Set remaining addresses to current contents of data registers.
 	// 1: Address register
 	// 2-3/2-5: Input / program data bytes (little endian, so reg 2 contains bit 31-24, etc)
-	// 6: High address register
+	// 6: High address register (for input data only)
 	//
 	// Examples:
 	// To write one 32-bit word of program:
@@ -172,7 +172,7 @@ module DpimIf(
 			8'h06: programAddr[12:8] <= busEppIn[4:0];
 			endcase
 		else if (ctrlReg[6]) begin
-			if (programAddr == 13'h1FFF)
+			if ((ctrlReg[1:0] == 2'b01 && programAddr[7:0] == 8'hFF) || (programAddr == 13'h1FFF))
 				ctrlReg[6] <= 1'b0;
 			else
 				programAddr <= programAddr + 1'b1;

@@ -105,13 +105,14 @@ uint8_t* BuildBinRegSet(size_t* regSetLen)
   }
 
   // Read file
-  uint8_t binaryProgram[1024];
+  uint8_t binaryProgram[1028];
+  memset(binaryProgram + fileSize, 0, 1028 - fileSize);
   fread(binaryProgram, 1, fileSize, binFile);
   size_t programSize = fileSize / 4;
   
   // Produce address/data pairs for programming
-  uint8_t* regSetPairs = (uint8_t*)malloc(programSize * 7 * 2 + 2);
-  for (size_t i = 0; i < programSize; ++i)
+  uint8_t* regSetPairs = (uint8_t*)malloc((programSize + 1) * 7 * 2 + 2);
+  for (size_t i = 0; i <= programSize; ++i)
   {
     uint8_t* instr = &regSetPairs[i * 7 * 2];
     for (int j = 0; j < 6; ++j)
@@ -121,7 +122,7 @@ uint8_t* BuildBinRegSet(size_t* regSetLen)
     for (int j = 0; j < 4; ++j)
       instr[5 + j * 2] = binaryProgram[i * 4 + 3 - j];
     instr[12] = 0;
-    instr[13] = 0x81;
+    instr[13] = (i == programSize) ? 0xc1 : 0x81;
   }
 
   regSetPairs[programSize * 7 * 2] = 0;

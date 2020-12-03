@@ -30,7 +30,7 @@ module Fifo(
 	reg [9:0] in_addr = 10'h000;
 	reg [9:0] out_addr = 10'h000;
 	
-	reg [11:0] fifo_array [1024:0];
+	reg [11:0] fifo_array [0:1023];
 	
 	always @(posedge clk) begin
 		if (rst) begin

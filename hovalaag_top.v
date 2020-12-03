@@ -3,8 +3,16 @@
 
 //  Hovalaag CPU harness for Digilent Basys 2 board
 //
-// 7 segment display displays last value written to OUT1 or OUT2,
+// 7 segment display normally displays last value written to OUT1 or OUT2,
 //  depending on position of SW0 (down = OUT1, up = OUT2)
+// Pressing BTN1 displays the waiting input (IN1 or IN2) instead of the last output.
+//
+// If SW5 is up the Hovalaag registers are instead displayed for debugging
+// SW6 and 7 control which register is displayed:
+// SW6 down, SW7 down: A
+// SW6 up,   SW7 down: B
+// SW6 down, SW7 up:   C
+// SW6 up,   SW7 up:   D
 //
 // The LEDs indicate address of next instruction to be executed
 //
@@ -61,12 +69,10 @@ module hovalaag_top(
 	reg pause = 1'b0;
 	
 	// Input advance control (only advance once)
-	reg prev_slow_clk = 1'b0;
-	reg do_hoval_IN;
+	reg do_hoval_IN = 1'b0;
 	reg do_hoval_OUT;
 	
 	always @(posedge clk) begin
-		prev_slow_clk <= slow_clk;
 		do_hoval_OUT <= do_hoval_IN;
 		
 		if (pause) begin
@@ -133,7 +139,7 @@ module hovalaag_top(
 	assign displayOUT = sw[5] ? ((!sw[7] && !sw[6]) ? A : 
 	                             (!sw[7] && sw[6]) ? B : 
 										  (sw[7] && !sw[6]) ? C : D) : 
-	                     program_write ? program_data[11:0] : (sw[0] ? OUT2 : OUT1);
+	                     program_write ? program_data[11:0] : (sw[0] ? (btn[1] ? IN2 : OUT2) : (btn[1] ? IN1 : OUT1));
 	SevenSeg display(clk, displayOUT, OUT_valid & (OUT_select == sw[0]), seg, an);
 
 	// Display next PC
