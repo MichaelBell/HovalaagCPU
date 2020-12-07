@@ -3,19 +3,13 @@
 // Inject program and input data to Basys2 development board for
 // Hovalaag CPU testing.
 //
-// Reads program from "a.out" and input data from "input.txt"
-// input.txt should contain columns of input data (in decimal),
-// for example:
-// 45      1     46     44
-// 24     18     42      6
-// 63      9     72     54
-// 91     13    104     78
-// The first two columns are set as the IN1 and IN2 input data,
-// any remaining columns are ignored.
+// Reads program from "a.out" and input data from "input.bin"
+// input.bin contains binary data to stream into IN1
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "dpcdecl.h" 
 #include "depp.h"
@@ -23,14 +17,19 @@
 
 #define DeviceName "Basys2"
 #define BinFileName "a.out"
-#define InputFileName "input.txt"
+#define InputBinFileName "input.bin"
+#define InputTxtFileName "input.txt"
 
 uint8_t* BuildBinRegSet(size_t* regSetLen);
-uint8_t* BuildInputRegSet(size_t* regSetLen);
+uint8_t* BuildInputRegSet(FILE* inFile, size_t* regSetLen, bool* moreData);
+
+bool isTextFile = false;
 
 int main(int argc, char* argv[])
 {
   HIF hif;
+
+  if (argc == 2 && !strcmp(argv[1], "-t")) isTextFile = true;
 
   if (!DmgrOpen(&hif, DeviceName))
   {
@@ -41,7 +40,15 @@ int main(int argc, char* argv[])
   if (!DeppEnable(hif))
   {
     printf("Failed to enable DEPP transfer\n");
+    DmgrClose(hif);
     return 1;
+  }
+
+  FILE* inFile = fopen(isTextFile ? InputTxtFileName : InputBinFileName, "rb");
+  if (!inFile)
+  {
+    printf("Failed to open input file\n");
+    return NULL;
   }
 
   int rv = 0;
@@ -61,21 +68,44 @@ int main(int argc, char* argv[])
   }
   free(regSetPairs);
 
-  regSetPairs = BuildInputRegSet(&regSetLen);
-  if (!regSetPairs)
+  while (true)
   {
-    rv = 4;
-    goto EXIT;
-  }
+    bool moreData = false;
+    regSetPairs = BuildInputRegSet(inFile, &regSetLen, &moreData);
+    if (!regSetPairs)
+    {
+      rv = 4;
+      goto EXIT;
+    }
   
-  if (!DeppPutRegSet(hif, regSetPairs, regSetLen, false))
-  {
-    printf("RegSet failed.\n");
-    rv = 3;
-    goto EXIT;
+    if (!DeppPutRegSet(hif, regSetPairs, regSetLen, false))
+    {
+      printf("RegSet failed.\n");
+      rv = 3;
+      goto EXIT;
+    }
+
+    if (!moreData) break;
+
+    free(regSetPairs);
+    regSetPairs = NULL;
+
+    while (true)
+    {
+      uint8_t data;
+      if (!DeppGetReg(hif, 7, &data, 0))
+      {
+        printf("RegGet failed.\n");
+        rv = 5;
+        goto EXIT;
+      }
+      if (data == 1) break;
+      usleep(10000);
+    }
   }
 
 EXIT:
+  fclose(inFile);
   free(regSetPairs);
   DeppDisable(hif);
   DmgrClose(hif);
@@ -130,41 +160,55 @@ uint8_t* BuildBinRegSet(size_t* regSetLen)
 
   fclose(binFile);
 
-  *regSetLen = (programSize + 1) * 7 + 2;
+  *regSetLen = (programSize + 1) * 7 + 1;
   return regSetPairs;
 }
 
-uint8_t* BuildInputRegSet(size_t* regSetLen)
+#define NUM_DATA_WORDS 2048
+
+uint8_t* BuildInputRegSet(FILE* inFile, size_t* regSetLen, bool* moreData)
 {
-  FILE* inFile = fopen(InputFileName, "rb");
-  if (!inFile)
-  {
-    printf("Failed to open " InputFileName "\n");
-    return NULL;
-  }
-
-  short int in1[8192];
-  short int in2[8192];
+  int16_t in1[NUM_DATA_WORDS];
+  uint8_t in1bin[NUM_DATA_WORDS];
   int in1Len = 0;
-  int in2Len = 0;
 
-  for (int i = 0; i < 8192 && !feof(inFile); ++i)
+  if (isTextFile)
   {
-    char buf[256];
-    if (!fgets(buf, sizeof(buf), inFile)) break;
+    for (int i = 0; i < NUM_DATA_WORDS && !feof(inFile); ++i)
+    {
+      char buf[256];
+      if (!fgets(buf, sizeof(buf), inFile)) break;
 
-    int numRead = sscanf(buf, "%hd %hd", &in1[i], &in2[i]);
-    if (numRead == 0) break;
-    in1Len++;
-    if (numRead == 2) in2Len++;
+      int numRead = sscanf(buf, "%hd", &in1[i]);
+      if (numRead == 0) break;
+      in1Len++;
+    }
+  }
+  else 
+  {
+    in1Len = fread(in1bin, 1, NUM_DATA_WORDS, inFile);
+    printf("Read %d bytes binary input\n", in1Len);
+    for (int i = 0; i < in1Len; ++i)
+      in1[i] = in1bin[i];
   }
 
-  in1[in1Len] = 0;
-  in2[in2Len] = 0;
+  if (in1Len == 0) return NULL;
+
+  *regSetLen = in1Len * 6 * 2 + 2;
+  if (in1Len < NUM_DATA_WORDS)
+  {
+    in1[in1Len] = 0;
+    *regSetLen += 6 * 2;
+    *moreData = false;
+  }
+  else
+  {
+    *moreData = true;
+  }
 
   // Produce address/data pairs for programming
-  uint8_t* regSetPairs = (uint8_t*)malloc((in1Len + in2Len + 2) * 6 * 2 + 2);
-  for (size_t i = 0; i <= in1Len; ++i)
+  uint8_t* regSetPairs = (uint8_t*)malloc(*regSetLen);
+  for (size_t i = 0; i < NUM_DATA_WORDS; ++i)
   {
     uint8_t* instr = &regSetPairs[i * 6 * 2];
     for (int j = 0; j < 4; ++j)
@@ -176,28 +220,18 @@ uint8_t* BuildInputRegSet(size_t* regSetLen)
     instr[8] = 6;
     instr[9] = i >> 8;
     instr[10] = 0;
-    instr[11] = (i == in1Len) ? 0xc2 : 0x82;
-  }
-  for (size_t i = 0; i <= in2Len; ++i)
-  {
-    uint8_t* instr = &regSetPairs[(i + in1Len + 1) * 6 * 2];
-    for (int j = 0; j < 4; ++j)
-      instr[j*2] = j;
-    instr[1] = 3;
-    instr[3] = i & 0xff;
-    instr[5] = in2[i] >> 8;
-    instr[7] = in2[i] & 0xff;
-    instr[8] = 6;
-    instr[9] = i >> 8;
-    instr[10] = 0;
-    instr[11] = (i == in1Len) ? 0xc3 : 0x83;
+    instr[11] = 0x82;
+    if (i == in1Len)
+    {
+      instr[11] = 0xc2;
+      break;
+    }
   }
 
-  regSetPairs[(in1Len + in2Len + 2) * 6 * 2] = 0;
-  regSetPairs[(in1Len + in2Len + 2) * 6 * 2 + 1] = 0;
+  regSetPairs[*regSetLen - 2] = 0;
+  regSetPairs[*regSetLen - 1] = 0;
 
-  fclose(inFile);
+  *regSetLen /= 2;
 
-  *regSetLen = (in1Len + in2Len + 2) * 6 * 1 + 1;
   return regSetPairs;
 }

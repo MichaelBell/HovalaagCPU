@@ -16,9 +16,11 @@ module DpimIf(
 	 output program_set,
 	 output [7:0] program_addr,
 	 output [31:0] program_data,
+	 input input1_rdy,
+	 input input2_rdy,
 	 output input1_set,
 	 output input2_set,
-	 output [12:0] input_addr,
+	 output [10:0] input_addr,
 	 output [11:0] input_data
     );
 
@@ -73,6 +75,7 @@ module DpimIf(
 	// 1: Address register
 	// 2-3/2-5: Input / program data bytes (little endian, so reg 2 contains bit 31-24, etc)
 	// 6: High address register (for input data only)
+	// 7: Input required - bitfield: 1, input 1; 2 input 2
 	//
 	// Examples:
 	// To write one 32-bit word of program:
@@ -85,7 +88,7 @@ module DpimIf(
 	// Set address and data registers to 0
 	// Set register 0 to 0xc2
 	reg [7:0] ctrlReg = 8'h00;
-	reg [12:0] programAddr = 13'h0000;
+	reg [10:0] programAddr = 11'h000;
 	reg [31:0] programData = 8'h00;
 	
 	assign busEppOut = (EppAstb == 1'b0) ? regAddr : dataOut;
@@ -95,7 +98,9 @@ module DpimIf(
 	                 (regAddr == 8'h03) ? programData[23:16] :
 	                 (regAddr == 8'h04) ? programData[15:8] :
 	                 (regAddr == 8'h05) ? programData[7:0] :
-	                 (regAddr == 8'h06) ? {3'b000,programAddr[12:8]} : 8'h00;
+	                 (regAddr == 8'h06) ? {5'b00000,programAddr[10:8]} : 
+						  (regAddr == 8'h07) ? {6'b000000,input2_rdy,input1_rdy} :
+						  8'h00;
 
 	assign program_set = ((ctrlReg & 8'h8F) == 8'h81);
 	assign input1_set = ((ctrlReg & 8'h8F) == 8'h82);
@@ -169,10 +174,10 @@ module DpimIf(
 			8'h03: programData[23:16] <= busEppIn;
 			8'h04: programData[15:8] <= busEppIn;
 			8'h05: programData[7:0] <= busEppIn;
-			8'h06: programAddr[12:8] <= busEppIn[4:0];
+			8'h06: programAddr[10:8] <= busEppIn[2:0];
 			endcase
 		else if (ctrlReg[6]) begin
-			if ((ctrlReg[1:0] == 2'b01 && programAddr[7:0] == 8'hFF) || (programAddr == 13'h1FFF))
+			if ((ctrlReg[1:0] == 2'b01 && programAddr[7:0] == 8'hFF) || (programAddr == 11'h7FF))
 				ctrlReg[6] <= 1'b0;
 			else
 				programAddr <= programAddr + 1'b1;

@@ -59,7 +59,9 @@ module hovalaag_top(
 	wire [31:0] program_data;
 	wire in1_set;
 	wire in2_set;
-	wire [12:0] input_addr;
+	wire in1_rdy;
+	wire in2_rdy;
+	wire [10:0] input_addr;
 	wire [11:0] input_data;
 	
 	// Clock control
@@ -75,7 +77,7 @@ module hovalaag_top(
 	always @(posedge clk) begin
 		do_hoval_OUT <= do_hoval_IN;
 		
-		if (pause) begin
+		if (pause || in1_rdy || in2_rdy) begin
 			// Do nothing while paused
 			do_hoval_IN <= 1'b0;
 		end 
@@ -105,14 +107,15 @@ module hovalaag_top(
 	
 	// Instantiate CPU and program block RAM
 	Hovalaag cpu(slow_clk, IN1, IN1_adv, IN2, IN2_adv, OUT, OUT_valid, OUT_select, instr, addr, A, B, C, D, reset);
-	DpimIf dpim(clk, EppAstb, EppDstb, EppWR, EppWait, EppDB, program_write, program_addr, program_data, in1_set, in2_set, input_addr, input_data);
+	DpimIf dpim(clk, EppAstb, EppDstb, EppWR, EppWait, EppDB, program_write, program_addr, program_data, in1_rdy, in2_rdy, in1_set, in2_set, input_addr, input_data);
 	Program prog(clk, addr, instr, program_write, program_addr, program_data);
 	
 	// Two input data banks version
 	//Input inp(clk, reset, IN1_adv & do_hoval_IN, IN2_adv & do_hoval_IN, IN1, IN2, in1_set, in2_set, input_addr[7:0], input_data);
 	
 	// Loopback OUT2 to IN2 version
-	Input1 inp(clk, reset, IN1_adv & do_hoval_IN, IN1, in1_set, input_addr, input_data);
+	Input1 inp(clk, reset, IN1_adv & do_hoval_IN, IN1, in1_rdy, in1_set, input_addr, input_data);
+	assign in2_rdy = 1'b0;
 	Fifo fifo(clk, reset, OUT_select & OUT_valid & do_hoval_OUT, OUT, IN2, IN2_adv & do_hoval_IN);
 
 	// Handle output, currently just saved in a register.
