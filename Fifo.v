@@ -27,15 +27,15 @@ module Fifo(
     input data_adv
     );
 
-	reg [9:0] in_addr = 10'h000;
-	reg [9:0] out_addr = 10'h000;
+	reg [11:0] in_addr = 12'h000;
+	reg [11:0] out_addr = 12'h000;
 	
-	reg [11:0] fifo_array [0:1023];
+	reg [11:0] fifo_array [0:4095];
 	
 	always @(posedge clk) begin
 		if (rst) begin
-			in_addr <= 8'h00;
-			out_addr <= 8'h00;
+			in_addr <= 0;
+			out_addr <= 0;
 		end
 		else begin
 			if (data_write) begin

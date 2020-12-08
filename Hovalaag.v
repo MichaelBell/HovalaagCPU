@@ -106,8 +106,8 @@ module Hovalaag(
 			D <= 12'h000;
 			W <= 12'h000;
 			F <= 1'b0;
-			C = 12'h000;
-			PC = 8'h00;
+			C <= 12'h000;
+			PC <= 8'h00;
 		end
 		else begin
 			// A unit
@@ -150,22 +150,22 @@ module Hovalaag(
 			
 			// C unit
 			case (C_op)
-			2'b00: C = C;
-			2'b01: C = M;
-			default: C = C - 1'b1;
+			2'b00: C <= C;
+			2'b01: C <= M;
+			default: C <= C - 1'b1;
 			endcase
 			
-			if (C_op == 2'b11 && C != 12'h000) begin
+			if (C_op == 2'b11 && C != 12'h001) begin
 			   // DECNZ overrides normal PC operation.
-				PC = L;
+				PC <= L;
 			end
 			else begin
 				// PC unit
 				case (PC_op)
-				2'b00: PC = PC + 1'b1;
-				2'b01: PC = L;
-				2'b10: PC = (F) ? L : PC + 1'b1;
-				2'b11: PC = (F) ? PC + 1'b1 : L;
+				2'b00: PC <= PC + 1'b1;
+				2'b01: PC <= L;
+				2'b10: PC <= (F) ? L : PC + 1'b1;
+				2'b11: PC <= (F) ? PC + 1'b1 : L;
 				endcase	
 			end
 		end
