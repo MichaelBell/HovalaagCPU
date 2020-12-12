@@ -27,10 +27,10 @@ module Fifo(
     input data_adv
     );
 
-	reg [11:0] in_addr = 12'h000;
-	reg [11:0] out_addr = 12'h000;
+	reg [12:0] in_addr = 0;
+	reg [12:0] out_addr = 0;
 	
-	reg [11:0] fifo_array [0:4095];
+	reg [11:0] fifo_array [0:8191];
 	
 	always @(posedge clk) begin
 		if (rst) begin
