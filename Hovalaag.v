@@ -64,8 +64,14 @@ module Hovalaag(
 	assign K = (instr[12]) ? instr[11:0] : { {6{instr[11]}}, instr[11:6] };
 	assign L = (instr[12]) ? instr[7:0] : {2'b00,instr[5:0]};
 	always @(posedge clk) begin
-		OUT_valid <= instr[14];
-		OUT_select <= IO_select;
+		if (rst == 1'b1) begin
+			OUT_valid <= 0;
+			OUT_select <= 0;
+		end
+		else begin
+			OUT_valid <= instr[14];
+			OUT_select <= IO_select;
+		end
 	end
 	
 	// Select and consume input
@@ -108,6 +114,7 @@ module Hovalaag(
 			F <= 1'b0;
 			C <= 12'h000;
 			PC <= 8'h00;
+			OUT <= 12'h000;
 		end
 		else begin
 			// A unit
