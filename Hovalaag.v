@@ -28,6 +28,10 @@ module Hovalaag(
 	 
 	 input [31:0] instr,
 	 output [7:0] PC_out,
+	 
+	 // Values to use for result of ALU ops 1110 and 1111
+	 input [11:0] alu_op_14_source,
+	 input [11:0] alu_op_15_source,
 
 // Debug	 
 	 output [11:0] A_dbg,
@@ -103,7 +107,7 @@ module Hovalaag(
 	
 	// ALU
 `include "HovalaagALU.v"
-	assign {newF,M} = HovalaagALU(alu_op, {A[11],A}, {B[11],B}, {C[11],C}, F);
+	assign {newF,M} = HovalaagALU(alu_op, {A[11],A}, {B[11],B}, {C[11],C}, {alu_op_14_source[11], alu_op_14_source}, {alu_op_15_source[11], alu_op_15_source}, F);
 	
 	always @(posedge clk) begin
 		if (rst == 1'b1) begin

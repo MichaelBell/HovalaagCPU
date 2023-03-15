@@ -6,6 +6,8 @@ function [12:0] HovalaagALU(
     input [12:0] A,
     input [12:0] B,
     input [12:0] C,
+	input [12:0] op_14_source,
+	input [12:0] op_15_source,
     input F
     );
 
@@ -23,7 +25,9 @@ function [12:0] HovalaagALU(
 			4'b1010: HovalaagALU = A&B;
 			4'b1011: HovalaagALU = A^B;
 			4'b1100: HovalaagALU = ~A;
-			default: HovalaagALU = A;
+			4'b1101: HovalaagALU = A;
+			4'b1110: HovalaagALU = op_14_source;
+			4'b1111: HovalaagALU = op_15_source;
 		endcase
 
 endfunction
