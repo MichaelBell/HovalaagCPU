@@ -16,6 +16,7 @@
 // If rst is high, then all registers are reset to zero and no instructions are executed.
 module Hovalaag(
 	 input clk,
+	 input clk_en,
 
     input [11:0] IN1,
 	 output IN1_adv,
@@ -72,7 +73,7 @@ module Hovalaag(
 			OUT_valid <= 0;
 			OUT_select <= 0;
 		end
-		else begin
+		else if (clk_en) begin
 			OUT_valid <= instr[14];
 			OUT_select <= IO_select;
 		end
@@ -120,7 +121,7 @@ module Hovalaag(
 			PC <= 8'h00;
 			OUT <= 12'h000;
 		end
-		else begin
+		else if (clk_en) begin
 			// A unit
 			case (A_op)
 			2'b00: A <= A;
